@@ -1,0 +1,25 @@
+请求体：
+curl --location 'https://api.siliconflow.cn/v1/chat/completions' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer example_key' \
+--data '{
+    "model": "deepseek-ai/DeepSeek-OCR",
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {"type": "text", "text": "Identify the 6-digit numeric verification code in the image"},
+          {
+            "type": "image_url",
+            "image_url": {
+                "url": "https://sf-maas-uat-prod.oss-cn-shanghai.aliyuncs.com/suggestion/lbygavkzjykewmmpnzfutkvedlowunms.png"
+            }
+          }
+        ]
+    }
+    ],
+    "temperature": 0.7,
+    "max_tokens": 128
+  }'
+
+注意：deepseek-ocr在验证码识别领域表现很差，已改用专门的vl模型

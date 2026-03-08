@@ -1,0 +1,54 @@
+这是整理后的请求头格式，分为**响应头**和**请求头**两部分，便于阅读和使用：
+
+### 响应头
+```http
+HTTP/1.1 302 Found
+Date: Thu, 05 Mar 2026 03:13:01 GMT
+Content-Length: 0
+Content-Type: text/html; charset=utf-8
+Location: /web-scraping-practice/web-scraping-with-captcha
+Server: cloudflare
+CF-Cache-Status: DYNAMIC
+Cache-Control: max-age=86400
+Expires: Fri, 06 Mar 2026 03:13:01 GMT
+Alt-Svc: h3=":443"; ma=86400
+CF-Ray: 9d75f13beca65329-AMS
+Nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+Report-To: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=8xy3NxUE2GBZhqb6rZt1kczF2L1OJ7ihSF6M3MPWkEIhItLfCf2CH3jn913m3xgY%2FFm3Ewi56t%2Bq4yCVMPXTPqcWihp3XJU3pcgK0w%3D%3D"}]}
+Server-Timing: cfExtPri
+Priority: u=0,i
+Referrer-Policy: strict-origin-when-cross-origin
+```
+
+### 请求头
+```http
+POST /web-scraping-practice/web-scraping-with-captcha/login HTTP/1.1
+Host: spiderbuf.cn
+Authority: spiderbuf.cn
+Method: POST
+Path: /web-scraping-practice/web-scraping-with-captcha/login
+Scheme: https
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+Accept-Encoding: gzip, deflate, br, zstd
+Accept-Language: zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,en-GB;q=0.6
+Cache-Control: max-age=0
+Content-Length: 84
+Content-Type: application/x-www-form-urlencoded
+Cookie: _ga=GA1.1.660262286.1772679679; __gads=ID=47e121023936718c:T=1772679713:RT=1772679713:S=ALNI_MYspSHK1sMdWpJshbw5htqQkDl3jQ; __gpi=UID=00001213bbf102ed:T=1772679713:RT=1772679713:S=ALNI_MYd8XaySOS78WFMSUvtvw1zbJF7vg; __eoi=ID=dd341b6d387a74f2:T=1772679713:RT=1772679713:S=AA-Afja5FMFJwvYf3mPFWu8w6yhT; _ga_7B42BKG1QE=GS2.1.s1772679678$o1$g1$t1772680383$j4$l0$h0
+Origin: https://spiderbuf.cn
+Priority: u=0, i
+Referer: https://spiderbuf.cn/web-scraping-practice/web-scraping-with-captcha
+Sec-Ch-Ua: "Not:A-Brand";v="99", "Microsoft Edge";v="145", "Chromium";v="145"
+Sec-Ch-Ua-Mobile: ?0
+Sec-Ch-Ua-Platform: "Windows"
+Sec-Fetch-Dest: document
+Sec-Fetch-Mode: navigate
+Sec-Fetch-Site: same-origin
+Sec-Fetch-User: ?1
+Upgrade-Insecure-Requests: 1
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36 Edg/145.0.0.0
+```
+
+### 说明
+- **响应头**：服务器返回的信息，包含状态码 `302 Found` 和重定向地址。
+- **请求头**：客户端发送的信息，包含请求方法、路径、Cookie、User-Agent 等。

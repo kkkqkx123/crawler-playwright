@@ -1,0 +1,35 @@
+https://spiderbuf.cn/web-scraping-practice/web-scraping-with-captcha
+
+<div style="display: flex;flex-direction: column;width: 400px;">
+          <label for="username">账号</label>
+          <input type="username" id="username" name="username" placeholder="账号" value="admin">
+          <label for="password">密码</label>
+          <input type="password" id="password" name="password" placeholder="密码" value="123456">
+          <label for="catchaid" class="col-sm-2 control-label">验证码</label>
+          <input type="captchaSolution" class="form-control" id="captchaSolution" name="captchaSolution" placeholder="验证码">
+          <div style="background-color: #fff;margin-top: 30px;">
+            <img id="image" src="/web-scraping-practice/captcha/G9VW6GMf0GS4i9yS8x9a.png" alt="验证码">
+          </div>
+          <input type="hidden" name="captchaId" value="G9VW6GMf0GS4i9yS8x9a">
+          <button type="submit" class="btn-main">登录</button>
+        </div>
+
+账号的xpath：//*[@id="username"]
+selector：#username
+值：admin
+
+密码的xpath：//*[@id="password"]
+selector：#password
+值：123456
+
+验证码输入的xpath：//*[@id="captchaSolution"]
+selector：#captchaSolution
+
+验证码图片的xpath：//*[@id="image"]
+selector：#image
+
+验证码图片的xpath：//*[@id="image"]
+selector：#image
+
+登录键的xpath：/html/body/main/div[2]/div[1]/form/div/button
+selector：body > main > div:nth-child(2) > div:nth-child(1) > form > div > button
