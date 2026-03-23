@@ -5,9 +5,12 @@ build/
 dist/
 wheels/
 *.egg-info
+uv.lock
 
 # Virtual environments
 .venv
 
 .env
 **/repomix-output.xml
+**/*.rar
+**/*.zip
