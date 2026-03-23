@@ -6,26 +6,87 @@ from typing import Tuple, List
 import cv2
 import numpy as np
 from PIL import Image
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, Page, Frame
 import io
 
 
-class TencentSliderCaptcha:
-    def __init__(self, page):
+class FrameManager:
+    """管理多层 iframe 的工具类"""
+    
+    def __init__(self, page: Page):
         self.page = page
+    
+    async def get_all_frames(self) -> List[Frame]:
+        """获取所有框架（包括嵌套 iframe）"""
+        frames = []
+        stack = list(self.page.frames)
+        
+        while stack:
+            frame = stack.pop()
+            frames.append(frame)
+            # 递归添加子框架
+            child_frames = frame.child_frames
+            stack.extend(child_frames)
+        return frames
+    
+    async def find_frame_by_url(self, url_pattern: str) -> Frame:
+        """根据 URL 模式查找框架"""
+        frames = await self.get_all_frames()
+        for frame in frames:
+            if url_pattern in frame.url:
+                return frame
+        raise Exception(f"未找到匹配 {url_pattern} 的框架")
+    
+    async def find_frame_by_selector(self, selector: str, timeout: int = 5000) -> Frame:
+        """查找包含特定选择器的框架"""
+        frames = await self.get_all_frames()
+        
+        for frame in frames:
+            try:
+                element = await frame.wait_for_selector(selector, timeout=1000)
+                if element:
+                    return frame
+            except:
+                continue
+        
+        raise Exception(f"未找到包含选择器 {selector} 的框架")
+    
+    async def wait_for_frame_load(self, frame: Frame, timeout: int = 10000):
+        """等待框架完全加载"""
+        try:
+            await frame.wait_for_load_state("networkidle", timeout=timeout)
+        except:
+            # 如果 networkidle 失败，至少等待 domcontentloaded
+            await frame.wait_for_load_state("domcontentloaded", timeout=timeout)
+
+
+class TencentSliderCaptcha:
+    def __init__(self, frame: Frame | Page):
+        """初始化，支持 Page 或 Frame"""
+        self.frame = frame
+    
+    def _get_mouse(self):
+        """获取 mouse 对象（Frame 需要通过 page 获取，Page 直接有 mouse）"""
+        frame = self.frame
+        # Page 有 mouse 属性，Frame 没有需要通过 page 获取
+        if hasattr(frame, 'page'):
+            return frame.page.mouse  # type: ignore
+        return frame.mouse  # type: ignore
         
     async def get_slider_position(self) -> Tuple[int, int, int, int]:
         """获取滑块元素的位置和大小"""
-        slider = await self.page.query_selector(".tc-fg-item.tc-slider-normal")
+        slider = await self.frame.query_selector(".tc-fg-item.tc-slider-normal")
         if not slider:
             raise Exception("未找到滑块元素")
         
         box = await slider.bounding_box()
-        return (box['x'], box['y'], box['width'], box['height'])
+        if box is None:
+            raise Exception("无法获取滑块边界框")
+        return (int(box['x']), int(box['y']), int(box['width']), int(box['height']))
     
     async def get_background_image(self) -> np.ndarray:
         """获取背景图并转换为OpenCV格式"""
-        bg_element = await self.page.query_selector("#slideBg")
+        bg_element = await self.frame.query_selector("#slideBg")
         if not bg_element:
             raise Exception("未找到背景图元素")
         
@@ -36,7 +97,7 @@ class TencentSliderCaptcha:
     
     async def get_slider_image(self) -> np.ndarray:
         """获取滑块图并转换为OpenCV格式"""
-        slider = await self.page.query_selector(".tc-fg-item")
+        slider = await self.frame.query_selector(".tc-fg-item")
         if not slider:
             raise Exception("未找到滑块元素")
         
@@ -107,19 +168,23 @@ class TencentSliderCaptcha:
         执行拖动操作
         """
         # 获取滑块元素
-        slider = await self.page.query_selector(".tc-fg-item.tc-slider-normal")
+        slider = await self.frame.query_selector(".tc-fg-item.tc-slider-normal")
         if not slider:
             raise Exception("未找到滑块元素")
         
         # 获取滑块位置
         box = await slider.bounding_box()
+        if box is None:
+            raise Exception("无法获取滑块边界框")
+        
+        mouse = self._get_mouse()
         
         # 鼠标移动到滑块中心
-        await self.page.mouse.move(box['x'] + box['width'] / 2, 
-                                   box['y'] + box['height'] / 2)
+        await mouse.move(box['x'] + box['width'] / 2, 
+                        box['y'] + box['height'] / 2)
         
         # 按下鼠标
-        await self.page.mouse.down()
+        await mouse.down()
         
         # 生成拖动轨迹
         track = self.generate_track(distance)
@@ -128,11 +193,11 @@ class TencentSliderCaptcha:
         current_x = box['x'] + box['width'] / 2
         for move in track:
             current_x += move
-            await self.page.mouse.move(current_x, box['y'] + box['height'] / 2)
+            await mouse.move(current_x, box['y'] + box['height'] / 2)
             await asyncio.sleep(random.uniform(0.005, 0.02))
         
         # 释放鼠标
-        await self.page.mouse.up()
+        await mouse.up()
         
         # 等待验证结果
         await asyncio.sleep(1)
@@ -142,7 +207,7 @@ class TencentSliderCaptcha:
         检查是否验证成功
         """
         # 检查滑块是否消失或隐藏
-        slider = await self.page.query_selector(".tc-fg-item.tc-slider-normal")
+        slider = await self.frame.query_selector(".tc-fg-item.tc-slider-normal")
         if not slider:
             return True
         
@@ -159,7 +224,7 @@ class TencentSliderCaptcha:
                 print(f"第 {attempt + 1} 次尝试...")
                 
                 # 等待验证码加载
-                await self.page.wait_for_selector(".tc-fg-item.tc-slider-normal", 
+                await self.frame.wait_for_selector(".tc-fg-item.tc-slider-normal", 
                                                  timeout=5000)
                 await asyncio.sleep(0.5)
                 
@@ -185,7 +250,7 @@ class TencentSliderCaptcha:
                 else:
                     print("验证失败，准备重试...")
                     # 刷新验证码
-                    refresh_btn = await self.page.query_selector(".tc-refresh")
+                    refresh_btn = await self.frame.query_selector(".tc-refresh")
                     if refresh_btn:
                         await refresh_btn.click()
                         await asyncio.sleep(1)
@@ -218,83 +283,120 @@ async def douban_login_with_captcha(username: str, password: str):
         )
         
         page = await context.new_page()
+        frame_manager = FrameManager(page)
         
         try:
-            # 访问豆瓣登录页面
-            login_url = "https://www.douban.com/"
-            print(f"正在访问豆瓣: {login_url}")
+            # 访问豆瓣登录页面 - 直接访问登录弹窗页面
+            login_url = "https://accounts.douban.com/passport/login_popup?login_source=anony"
+            print(f"正在访问豆瓣登录页面: {login_url}")
             await page.goto(login_url, timeout=30000)
-            await asyncio.sleep(2)
+            await page.wait_for_load_state("networkidle")
+            
+            # 调试：打印所有 frame
+            frames = await frame_manager.get_all_frames()
+            print(f"找到 {len(frames)} 个框架:")
+            for i, frame in enumerate(frames):
+                print(f"  [{i}] {frame.url}")
             
       # 1. 点击密码登录控件（否则默认是手机激活码）
             print("点击密码登录控件...")
-            password_login_tab = await page.query_selector("#app > div > div.account-body-tabs > ul.tab-start > li.account-tab-account.on")
-            if password_login_tab:
-                await password_login_tab.click()
-            else:
-                # 尝试使用xpath
-                password_login_tab = await page.query_selector("xpath=//*[@id=\"app\"]/div/div[1]/ul[1]/li[2]")
+            try:
+                password_login_tab = await page.wait_for_selector("#app > div > div.account-body-tabs > ul.tab-start > li.account-tab-account", timeout=10000)
                 if password_login_tab:
                     await password_login_tab.click()
-                else:
+            except:
+                # 尝试使用xpath
+                try:
+                    password_login_tab = await page.wait_for_selector("xpath=//*[@id=\"app\"]/div/div[1]/ul[1]/li[2]", timeout=5000)
+                    if password_login_tab:
+                        await password_login_tab.click()
+                except:
                     print("未找到密码登录控件，尝试直接输入")
-            
-            await asyncio.sleep(1)
             
             # 2. 输入账号
             print(f"输入账号: {username}")
-            username_input = await page.query_selector("#app > div > div.account-tabcon-start > div.account-form > div:nth-child(3) > div > input")
-            if username_input:
-                await username_input.fill(username)
-            else:
-                # 尝试使用xpath
-                username_input = await page.query_selector("xpath=//*[@id=\"app\"]/div/div[2]/div[1]/div[3]/div/input")
+            try:
+                username_input = await page.wait_for_selector("#app > div > div.account-tabcon-start > div.account-form > div:nth-child(3) > div > input", timeout=5000)
                 if username_input:
                     await username_input.fill(username)
-                else:
+            except:
+                # 尝试使用xpath
+                try:
+                    username_input = await page.wait_for_selector("xpath=//*[@id=\"app\"]/div/div[2]/div[1]/div[3]/div/input", timeout=5000)
+                    if username_input:
+                        await username_input.fill(username)
+                except:
                     print("未找到账号输入框")
                     return False
             
-            await asyncio.sleep(0.5)
-            
             # 3. 输入密码
             print("输入密码...")
-            password_input = await page.query_selector("#app > div > div.account-tabcon-start > div.account-form > div:nth-child(4) > div > input")
-            if password_input:
-                await password_input.fill(password)
-            else:
-                # 尝试使用xpath
-                password_input = await page.query_selector("xpath=//*[@id=\"app\"]/div/div[2]/div[1]/div[4]/div/input")
+            try:
+                password_input = await page.wait_for_selector("#app > div > div.account-tabcon-start > div.account-form > div:nth-child(4) > div > input", timeout=5000)
                 if password_input:
                     await password_input.fill(password)
-                else:
+            except:
+                # 尝试使用xpath
+                try:
+                    password_input = await page.wait_for_selector("xpath=//*[@id=\"app\"]/div/div[2]/div[1]/div[4]/div/input", timeout=5000)
+                    if password_input:
+                        await password_input.fill(password)
+                except:
                     print("未找到密码输入框")
                     return False
             
-            await asyncio.sleep(0.5)
-            
             # 4. 点击登录控件
             print("点击登录按钮...")
-            login_button = await page.query_selector("#app > div > div.account-tabcon-start > div.account-form > div.account-form-field-submit > a")
-            if login_button:
-                await login_button.click()
-            else:
-                # 尝试使用xpath
-                login_button = await page.query_selector("xpath=//*[@id=\"app\"]/div/div[2]/div[1]/div[5]/a")
+            try:
+                login_button = await page.wait_for_selector("#app > div > div.account-tabcon-start > div.account-form > div.account-form-field-submit > a", timeout=5000)
                 if login_button:
                     await login_button.click()
-                else:
+            except:
+                # 尝试使用xpath
+                try:
+                    login_button = await page.wait_for_selector("xpath=//*[@id=\"app\"]/div/div[2]/div[1]/div[5]/a", timeout=5000)
+                    if login_button:
+                        await login_button.click()
+                except:
                     print("未找到登录按钮")
                     return False
             
             # 等待验证码出现
             print("等待滑块验证码出现...")
             try:
-                await page.wait_for_selector(".tc-fg-item", timeout=10000)
-                print("检测到滑块验证码")
+                # 使用 FrameManager 查找验证码 frame
+                captcha_frame = None
                 
-                # 创建验证码处理器并解决
-                captcha = TencentSliderCaptcha(page)
+                # 先检查主页面是否有验证码
+                captcha_element = await page.query_selector(".tc-fg-item")
+                if captcha_element:
+                    print("检测到滑块验证码（主页面）")
+                    captcha = TencentSliderCaptcha(page)
+                else:
+                    # 使用 FrameManager 查找验证码 iframe
+                    print("主页面未找到验证码，使用 FrameManager 检查 iframe...")
+                    try:
+                        captcha_frame = await frame_manager.find_frame_by_url("captcha")
+                        print(f"找到验证码 frame: {captcha_frame.url}")
+                    except:
+                        try:
+                            captcha_frame = await frame_manager.find_frame_by_url("turing")
+                            print(f"找到验证码 frame: {captcha_frame.url}")
+                        except:
+                            print("未找到验证码 frame")
+                    
+                    if captcha_frame:
+                        # 等待 iframe 中的验证码加载
+                        await frame_manager.wait_for_frame_load(captcha_frame)
+                        await captcha_frame.wait_for_selector(".tc-fg-item", timeout=10000)
+                        print("检测到滑块验证码（iframe）")
+                        captcha = TencentSliderCaptcha(captcha_frame)
+                    else:
+                        # 尝试等待主页面验证码
+                        await page.wait_for_selector(".tc-fg-item", timeout=10000)
+                        print("检测到滑块验证码（主页面）")
+                        captcha = TencentSliderCaptcha(page)
+                
                 success = await captcha.solve()
                 
                 if success:

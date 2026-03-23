@@ -1,5 +1,0 @@
-playwright
-opencv-python
-pillow
-numpy
-python-dotenv
