@@ -15,3 +15,5 @@ uv.lock
 **/*.rar
 **/*.zip
 **/*.png
+**/*.jpg
+**/*.jpeg
