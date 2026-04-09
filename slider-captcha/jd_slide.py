@@ -192,7 +192,7 @@ class JDSliderCaptcha:
         for i, pos in enumerate(tracks):
             relative_move = pos - prev_pos
             y_offset = random.randint(-8, 8)  # 更大y偏移
-            
+
             # 动态duration：开始慢，中间快，结束慢
             if i < len(tracks) // 4:
                 duration = random.uniform(0.05, 0.12)  # 开始慢
@@ -200,11 +200,14 @@ class JDSliderCaptcha:
                 duration = random.uniform(0.05, 0.12)  # 结束慢
             else:
                 duration = random.uniform(0.02, 0.06)  # 中间快
-            
+
             current_x += relative_move
             await mouse.move(current_x, current_y + y_offset)
             prev_pos = pos
-            
+
+            # 使用 sleep 模拟 duration 效果
+            await asyncio.sleep(duration)
+
             # 随机小停顿
             if random.random() < 0.15:
                 await asyncio.sleep(random.uniform(0.02, 0.08))

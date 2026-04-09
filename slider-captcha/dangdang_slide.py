@@ -122,21 +122,34 @@ class DangdangSliderCaptcha:
             return None
     
     def generate_track(self, distance: int) -> list[int]:
-        """生成匀速滑块轨迹"""
+        """生成更像真人的滑块轨迹：贝塞尔曲线模拟 + 随机停顿 + 加速减速"""
+
+        # 生成贝塞尔曲线点
+        def bezier_curve(p0, p1, p2, t):
+            return (1-t)**2 * p0 + 2*(1-t)*t * p1 + t**2 * p2
+
+        # 控制点
+        p0 = 0
+        p2 = distance
+        p1 = distance * random.uniform(0.3, 0.7)  # 随机中间点
+
         track = []
-        current = 0
-        
-        # 匀速向前滑动
-        while current < distance:
-            # 每次移动 2-4 像素，非常平稳
-            move = random.randint(2, 4)
-            current += move
-            track.append(current)
-        
-        # 最后精准到达目标位置
+        steps = random.randint(25, 35)  # 更多步骤
+        for i in range(steps + 1):
+            t = i / steps
+            # 添加非线性时间分布，模拟加速减速
+            t = t ** random.uniform(0.8, 1.2)  # 使轨迹更不均匀
+            pos = bezier_curve(p0, p1, p2, t)
+            track.append(int(pos))
+
+            # 随机停顿
+            if random.random() < 0.2:
+                track.append(int(pos))  # 重复位置
+
+        # 确保最后到达
         if track[-1] != distance:
-            track.append(distance)
-        
+            track[-1] = distance
+
         return track
     
     async def drag_slider(self, distance: int):
@@ -145,7 +158,7 @@ class DangdangSliderCaptcha:
         slider = await self.page.query_selector("xpath://div[@id='sliderBtn']")
         if not slider:
             raise Exception("未找到滑块元素")
-        
+
         # 获取滑块位置
         box = await slider.bounding_box()
         if box is None:
@@ -155,34 +168,58 @@ class DangdangSliderCaptcha:
         page_obj = self.page if isinstance(self.page, Page) else self.page.page
         mouse = page_obj.mouse
 
-        # 轻轻悬停
+        # 鼠标移到滑块上，模拟真人犹豫
         await mouse.move(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
-        await asyncio.sleep(0.5)
-        
+        await asyncio.sleep(random.uniform(0.8, 2.0))  # 更长的停顿
+
+        # 随机移动鼠标
+        await mouse.move(box['x'] + box['width'] / 2 + random.randint(-5, 5),
+                        box['y'] + box['height'] / 2 + random.randint(-5, 5))
+        await asyncio.sleep(random.uniform(0.3, 0.8))
+
         # 按住滑块
         await mouse.down()
-        await asyncio.sleep(0.3)
-        
+        await asyncio.sleep(random.uniform(0.3, 1.0))  # 更长的按住时间
+
         # 生成拖动轨迹
         tracks = self.generate_track(distance)
-        
-        # 平稳滑动，无上下乱飘、无随机停顿
+
+        # 根据轨迹拖动，添加更大随机y偏移和更慢duration
         prev_pos = 0
         current_x = box['x'] + box['width'] / 2
         current_y = box['y'] + box['height'] / 2
-        
-        for pos in tracks:
-            move_x = pos - prev_pos
-            # Y 轴固定 0，不上下乱动
-            current_x += move_x
-            await mouse.move(current_x, current_y)
-            await asyncio.sleep(0.008)
+
+        for i, pos in enumerate(tracks):
+            relative_move = pos - prev_pos
+            y_offset = random.randint(-8, 8)  # 更大y偏移
+
+            # 动态duration：开始慢，中间快，结束慢
+            if i < len(tracks) // 4:
+                duration = random.uniform(0.05, 0.12)  # 开始慢
+            elif i > len(tracks) * 3 // 4:
+                duration = random.uniform(0.05, 0.12)  # 结束慢
+            else:
+                duration = random.uniform(0.02, 0.06)  # 中间快
+
+            current_x += relative_move
+            await mouse.move(current_x, current_y + y_offset)
             prev_pos = pos
-        
-        # 释放
-        await asyncio.sleep(0.2)
+
+            # 随机小停顿
+            if random.random() < 0.15:
+                await asyncio.sleep(random.uniform(0.02, 0.08))
+
+        # 释放鼠标
         await mouse.up()
-        await asyncio.sleep(2)
+        await asyncio.sleep(random.uniform(0.2, 0.5))  # 随机释放后停顿
+
+        # 释放后随机移动鼠标，模拟真人行为
+        for _ in range(random.randint(2, 5)):
+            await mouse.move(current_x + random.randint(-20, 20),
+                           current_y + random.randint(-20, 20))
+            await asyncio.sleep(random.uniform(0.1, 0.3))
+
+        await asyncio.sleep(random.uniform(0.8, 1.5))
     
     async def is_verified(self) -> bool:
         """检查是否验证成功"""
