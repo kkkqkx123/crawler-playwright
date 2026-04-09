@@ -42,7 +42,8 @@ def qwen_vl(image_bytes: bytes, prompt: str) -> str:
             {"type": "text", "text": prompt}
         ]}]
     )
-    return resp.choices[0].message.content.strip()
+    content = resp.choices[0].message.content
+    return content.strip() if content else ""
 
 
 def recognize_prompt_chars(tip_bytes: bytes) -> list:
@@ -189,8 +190,11 @@ def solve_captcha(page: Page) -> bool:
     # 3. 坐标缩放
     big_img = Image.open(io.BytesIO(big_bytes))
     shot_w, shot_h = big_img.size
-    css_w = wrap_el.bounding_box()["width"]
-    css_h = wrap_el.bounding_box()["height"]
+    box = wrap_el.bounding_box()
+    if not box:
+        raise Exception("验证码大图元素未正确加载")
+    css_w = box["width"]
+    css_h = box["height"]
     scale_x = css_w / shot_w
     scale_y = css_h / shot_h
 
