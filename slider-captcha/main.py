@@ -762,17 +762,28 @@ async def douban_login_with_captcha(username: str, password: str):
                     # 等待后重试
                     await asyncio.sleep(1)
                 
+                # 初始化 captcha 变量，确保在所有路径下都有定义
+                captcha = None
+                
                 if captcha_frame:
                     # 等待 iframe 中的验证码加载
                     await frame_manager.wait_for_frame_load(captcha_frame)
                     await captcha_frame.wait_for_selector(".tc-fg-item", timeout=10000)
                     print("检测到滑块验证码（iframe）")
                     captcha = TencentSliderCaptcha(captcha_frame)
-                elif not captcha_element:
-                    # 尝试等待主页面验证码
-                    await page.wait_for_selector(".tc-fg-item", timeout=10000)
-                    print("检测到滑块验证码（主页面）")
-                    captcha = TencentSliderCaptcha(page)
+                
+                # 如果没有找到 iframe 验证码，检查主页面是否有验证码
+                if captcha is None:
+                    # 等待主页面验证码出现
+                    try:
+                        await page.wait_for_selector(".tc-fg-item", timeout=10000)
+                        print("检测到滑块验证码（主页面）")
+                        captcha = TencentSliderCaptcha(page)
+                    except:
+                        pass
+                
+                if captcha is None:
+                    raise Exception("未找到任何验证码元素")
                 
                 success = await captcha.solve()
                 
