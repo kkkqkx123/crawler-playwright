@@ -17,6 +17,36 @@ from typing import Optional
 import re
 
 
+# 全局变量，用于多进程worker函数
+_global_headers = None
+
+
+def _download_worker(url: str) -> tuple[bool, int, float]:
+    """
+    多进程下载worker函数（必须在模块顶层定义才能被pickle序列化）
+    
+    Args:
+        url: ts片段URL
+        
+    Returns:
+        (success, size, elapsed_time) 元组
+    """
+    try:
+        seg_start = time.time()
+        response = requests.get(url, headers=_global_headers, timeout=60, stream=True)
+        response.raise_for_status()
+        
+        data = b''
+        for chunk in response.iter_content(chunk_size=8192):
+            if chunk:
+                data += chunk
+        
+        seg_time = time.time() - seg_start
+        return True, len(data), seg_time
+    except Exception as e:
+        return False, 0, 0
+
+
 class PerformanceBenchmark:
     def __init__(self, page_url: str, output_dir: str = r"D:\项目\crawler\py-playwright\video-crawling\output"):
         """
@@ -221,24 +251,12 @@ class PerformanceBenchmark:
         start_time = time.time()
         start_resource = self.get_resource_usage()
         
-        def download_worker(url: str) -> tuple[bool, int, float]:
-            try:
-                seg_start = time.time()
-                response = requests.get(url, headers=self.headers, timeout=60, stream=True)
-                response.raise_for_status()
-                
-                data = b''
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        data += chunk
-                
-                seg_time = time.time() - seg_start
-                return True, len(data), seg_time
-            except Exception as e:
-                return False, 0, 0
+        # 设置全局headers供worker函数使用
+        global _global_headers
+        _global_headers = self.headers
         
         with Pool(processes=max_workers) as pool:
-            results = pool.map(download_worker, ts_urls)
+            results = pool.map(_download_worker, ts_urls)
         
         total_bytes = 0
         success_count = 0
