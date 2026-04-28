@@ -1,0 +1,84 @@
+请求 URL
+https://yzzy.play-cdn13.com/20230102/3461_c486616a/2000k/hls/d52a21914486047bb95607f5ee1e12e5.ts
+请求方法
+GET
+状态代码
+206 Partial Content
+远程地址
+216.180.224.150:443
+引用站点策略
+strict-origin-when-cross-origin
+
+响应标头：
+accept-ranges
+bytes
+access-control-allow-headers
+DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range
+access-control-allow-methods
+GET, POST, OPTIONS
+access-control-allow-origin
+*
+access-control-expose-headers
+Content-Length,Content-Range
+cache-control
+max-age=2592000
+content-length
+520008
+content-range
+bytes 0-520007/520008
+content-type
+video/mp2t
+date
+Sat, 25 Apr 2026 22:27:14 GMT
+etag
+"63b2475a-7ef48"
+expires
+Mon, 25 May 2026 22:27:14 GMT
+last-modified
+Sat, 25 Apr 2026 22:27:14 GMT
+server
+nginx
+x-cache
+UPDATING
+
+请求标头：
+:authority
+yzzy.play-cdn13.com
+:method
+GET
+:path
+/20230102/3461_c486616a/2000k/hls/d52a21914486047bb95607f5ee1e12e5.ts
+:scheme
+https
+accept
+*/*
+accept-encoding
+identity;q=1, *;q=0
+accept-language
+zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,en-GB;q=0.6
+cache-control
+no-cache
+origin
+https://m.bpfun.com
+pragma
+no-cache
+priority
+i
+range
+bytes=0-
+referer
+https://m.bpfun.com/
+sec-ch-ua
+"Microsoft Edge";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
+sec-ch-ua-mobile
+?0
+sec-ch-ua-platform
+"Windows"
+sec-fetch-dest
+video
+sec-fetch-mode
+cors
+sec-fetch-site
+cross-site
+user-agent
+Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 Edg/147.0.0.0

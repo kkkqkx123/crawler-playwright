@@ -13,3 +13,5 @@ uv add openai
 uv add opencv-python
 uv add pillow
 uv add requests
+uv add aiohttp --index https://pypi.org/simple
+uv add psutil --index https://pypi.org/simple
